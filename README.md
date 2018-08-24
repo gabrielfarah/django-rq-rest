@@ -1,3 +1,7 @@
+# django-rq-rest
+
+This library helps you build slim and easy async rest taks using djangorestframework and django-rq.
+
 ### Usage
 
 ##### 1. Create a new async rest view
