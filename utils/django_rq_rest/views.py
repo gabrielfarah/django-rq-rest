@@ -10,7 +10,8 @@ from rest_framework.views import APIView
 
 class BaseAsyncView:
     """
-
+    Base class for async kind of jobs. Exten this class if you need more
+    flexibility of the logic inside.
     """
     FAILED_JOB = {"message": "Request failed to complete."}
     MISSING_JOB_ID = {
@@ -27,9 +28,9 @@ class BaseAsyncView:
 
     def obtain_job_id(self, request):
         """
-
-        :param request:
-        :return:
+        Gets the "id" query param from the request
+        :param request: the http request
+        :return: the value of the query param "id" or a exception.
         """
         job_id = request.query_params.get('id', None)
         if job_id is None or job_id == "":
@@ -37,7 +38,7 @@ class BaseAsyncView:
                 self.MISSING_JOB_ID, code=status.HTTP_400_BAD_REQUEST)
         return job_id
 
-    def obtain_job_id_response(self, job_id, queue_name):
+    def get_job_response(self, job_id, queue_name):
         """
 
         :param job_id:
@@ -67,40 +68,56 @@ class BaseAsyncView:
             raise ValidationError(
                 self.BAD_REQUEST, code=status.HTTP_400_BAD_REQUEST)
 
-    def obtain_job_response(
+    def enqueue_job(
             self, queue_name, job_name, params, view_name, job_file='jobs',
             kwargs=None):
         """
-
-        :param queue_name:
-        :param job_file:
-        :param job_name:
-        :param params:
-        :param view_name:
-        :param kwargs:
+        This function enqueue a new task.
+        :param queue_name: The name of the queue to send the task to.
+        :param job_file: The name of the remote python module with a function.
+        :param job_name: The name of the remote function inside the file.
+        :param params: The parameters of the remote function.
+        :param view_name: The name of the REST view  endpoint.
+        :param kwargs: Additional kwargs supported by django_rq in the
+        enqueue function
         :return:
         """
         queue = django_rq.get_queue(queue_name)
         job = queue.enqueue('{}.{}'.format(job_file, job_name), ttl=43,
                             **params)
         if job.is_failed:
-            return Response(self.FAILED_JOB,
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                self.FAILED_JOB, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
             url = "{}?id={}".format(
                 reverse_lazy(view_name, kwargs=kwargs), job.id)
             return Response({
                 "message": "Request processed successfully",
-                "url": url},
-                status=status.HTTP_202_ACCEPTED,
+                "url": url}, status=status.HTTP_202_ACCEPTED,
                 headers={"Content-Location": url})
 
 
 class AsyncView(APIView, BaseAsyncView):
     """
+    A simple rest aync view utility. To create a instance of this view
+    do the following:
+        * Create a new view in your views.py adding this class to it.
+        * Add the 5 obligatory attributes to the new view (job_file,
+        queue_name, job_name, job_params, view_name).
+        * Run your server and test.
 
+    Example:
+
+        class ImageClassifierView(AsyncView):
+            renderer_classes = (JSONRenderer,)
+            permission_classes = (IsAuthenticated,)
+
+            job_file = 'jobs'
+            queue_name = settings.SIMPLE_ML_QUEUE
+            job_name = 'image_face_recognition'
+            job_params = ['b64_image']
+            view_name = 'face-recognition'
     """
-
     @property
     def queue_name(self):
         """
@@ -158,7 +175,7 @@ class AsyncView(APIView, BaseAsyncView):
 
     def get(self, request):
         job_id = self.obtain_job_id(request)
-        return self.obtain_job_id_response(job_id, self.queue_name)
+        return self.get_job_response(job_id, self.queue_name)
 
     def post(self, request):
         params = {}
@@ -170,6 +187,6 @@ class AsyncView(APIView, BaseAsyncView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 params[k] = request.data[k]
-        return self.obtain_job_response(
+        return self.enqueue_job(
             self.queue_name, self.job_name, params, self.view_name,
             job_file=self.job_file)
