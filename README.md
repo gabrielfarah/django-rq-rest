@@ -6,7 +6,7 @@ This library helps you build slim and easy async rest taks using djangorestframe
 
 ##### 1. Create a new async rest view
 First, we create a new viw inside our **`views.py`** file. 
-```
+```python
 from django_rq_rest.views import AsyncView
 
 class ImageClassifierView(AsyncView):
@@ -26,7 +26,7 @@ class ImageClassifierView(AsyncView):
 ```
 We add it to our **`urls.py`** like any other view. 
 
-```
+```python
 urlpatterns = [
     ...
     url(r'^face-classifier/$', 
@@ -42,7 +42,7 @@ In this example we selected that:
 
 ##### 2. Creating the taks
 Lets create and define **`jobs.py`** as our worker task.
-```
+```python
 import base64
 import json
 import awesome_custom_ml_lib
@@ -58,7 +58,7 @@ defined in the **`ImageClassifierView`** view.
 To create the worker that listen to Redis, we create a file (in my case **`worker.py`**)
 and we add the following:
 
-```
+```python
 from django_rq_rest.worker.base import BaseWorker
 worker = BaseWorker('ml_queue', redis_url='localhost:6379/1')
 worker.work()
