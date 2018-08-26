@@ -1,6 +1,14 @@
 # django-rq-rest
 
-This library helps you build slim and easy async rest taks using djangorestframework and django-rq.
+This library helps you build slim and easy async rest taks using 
+[django-rq](https://github.com/rq/django-rq) and 
+[django-rest-framework](https://github.com/encode/django-rest-framework).
+This library has views to be used in your Django app and code to help you setup the clients.
+
+One big difference between this library and a typical
+[django-rq](https://github.com/rq/django-rq) setup is that your tasks are 
+completely decoupled from the main app, this makes them easier to develop and 
+update both independently. 
 
 ### Usage
 
@@ -64,3 +72,17 @@ worker = BaseWorker('ml_queue', redis_url='localhost:6379/1')
 worker.work()
 ```
 once we run **`python worker.py`** we should start being able to run our service.
+
+##### 4. Using the endpoint
+
+```python
+import requests
+
+req = requests.post('localhost:8080/face-classifier', json={'b64_image':'Base64 img...'})
+data = req.json()
+poll = None
+while not poll:
+    poll = requests.get(data['url']).json().get('result')
+....
+Do something ...
+```
